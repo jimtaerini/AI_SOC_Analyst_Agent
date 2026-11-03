@@ -75,9 +75,9 @@ python experiments/e0_profile_guide.py data/archive/GUIDE_Train.csv > experiment
 
 第 16 組
 
-| 姓名 | 學號 |
-|---|---|
-| 蘇恩平 | |
-| 周妤 | |
-| 袁靖淇 | |
-| 蕭宥瑄 | |
+| 姓名 |
+|---|
+| 蘇恩平 |
+| 周妤 |
+| 袁靖淇 |
+| 蕭宥瑄 |
