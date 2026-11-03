@@ -138,7 +138,7 @@ flowchart LR
 
 | 資料集 | 年份 | 用途 | 授權 | 狀態 |
 |---|---|---|---|---|
-| Microsoft GUIDE（Kaggle: *Microsoft Security Incident Prediction*） | 2024 | 主資料集：分級模型訓練與評估（E1、E2）；`GUIDE_Test_Queue_Rankings.csv` 可做優先排序延伸實驗 | CDLA-2.0 | 已下載至 `data/archive/` |
+| Microsoft GUIDE（Kaggle: *Microsoft Security Incident Prediction*） | 2024 | 主資料集：分級模型訓練與評估（E1、E2、E4、Ablation）；`GUIDE_Test_Queue_Rankings.csv` 可做優先排序延伸實驗 | CDLA-2.0 | 已下載至 `data/archive/` |
 | ExCyTIn-Bench | 2025 | Agent 調查推理能力評估（E3） | 依官方 repo | 待下載 |
 | CyberSOCEval | 2025 | LLM 威脅情資推理能力參考評估（選用） | 依官方 repo | 待評估 |
 | Splunk BOTS v3 | 2020 | Demo 用真實格式 log 情境（選用） | CC0 | 待評估 |
@@ -305,6 +305,8 @@ Output: label, confidence conf, flag set flags
 1. 事件中每一筆告警都已取得對應的證據（evidence）。
 2. 事件涉及的主要實體（帳號、主機）都至少有一筆上下文紀錄，例如登入、程序或網路活動。
 3. 任一查詢回傳空結果時，必須確認同一資料來源在該時間窗內仍有其他紀錄，也就是 log 沒有中斷；無法確認時視為證據不足，而不是「沒有可疑活動」。
+
+自然語言調查問題沒有告警清單，第 1 項改為「問題涉及的每個實體都已查詢過」。
 
 **`OneHotWithConfidence` 的轉換方式**：LLM 自行回報的數值信心通常不可靠，因此只要求 LLM 回報「低／中／高」三級信心，分別對應 c = 0.5、0.7、0.9（實際數值在驗證集上調整）。LLM 判斷的類別得到 c，其餘兩類平分 1 − c。例如 LLM 判斷為 TP、信心「中」，則 q = (0.7, 0.15, 0.15)。
 
