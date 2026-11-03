@@ -1,6 +1,6 @@
 # DESIGN.md — AI SOC Analyst Agent
 
-> 狀態：**Proposal 階段**（v0.4）。本文件從 Proposal 開始建立並隨開發持續更新。
+> 狀態：**Proposal 階段**（v0.5）。本文件從 Proposal 開始建立並隨開發持續更新。
 > 文中的文獻編號（例如 [3]）對應 [`docs/proposal.md`](docs/proposal.md) §6 References。
 > 標示「（規劃）」的項目尚未實作；標示「（待確認）」的項目需在下載資料或實作後驗證。
 
@@ -300,7 +300,7 @@ Output: label, confidence conf, flag set flags
 09: return (label, conf, flags)
 ```
 
-**`IsSufficient(E)` 的判斷方式**：採規則判斷，不交給 LLM 自行決定，以避免 [3] 發現的過早結案。三項都成立才算證據足夠：
+**`IsSufficient(E)` 的判斷方式**：採規則判斷，不交給 LLM 自行決定，以避免 [3] 發現的過早結案；[25] 也觀察到，最後需要升級的告警，分析師會蒐集更多種類的資訊。三項都成立才算證據足夠：
 
 1. 事件中每一筆告警都已取得對應的證據（evidence）。
 2. 事件涉及的主要實體（帳號、主機）都至少有一筆上下文紀錄，例如登入、程序或網路活動。
@@ -365,3 +365,4 @@ Proposal 階段尚無可執行程式，實作後更新本節。
 | v0.2 | 2026-11-02 | 加入 GUIDE_Train.csv 實際檢查結果：確認匿名化欄位、標籤分布、`MitreTechniques` 覆蓋率、處置標籤缺值 |
 | v0.3 | 2026-11-03 | 證據不足（用完工具呼叫上限）改為標記後繼續分析，並列入升級條件（Flowchart、Algorithm 1 第 18 行）；LLM 成本對策改為工具與 token 預算，「只對不確定事件呼叫 LLM」列為可選優化 |
 | v0.4 | 2026-11-03 | 定義 `IsSufficient(E)` 與 `OneHotWithConfidence`；補充 Planner 決策點、回饋的用途、LLM 成本估算與時程風險 |
+| v0.5 | 2026-11-03 | 新增 SOC 實務文獻 [24]–[26]，`IsSufficient` 的設計依據加入 [25] |
