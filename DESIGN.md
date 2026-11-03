@@ -1,6 +1,7 @@
 # DESIGN.md — AI SOC Analyst Agent
 
-> 狀態：**Proposal 階段**（v0.3）。本文件從 Proposal 開始建立並隨開發持續更新。
+> 狀態：**Proposal 階段**（v0.4）。本文件從 Proposal 開始建立並隨開發持續更新。
+> 文中的文獻編號（例如 [3]）對應 [`docs/proposal.md`](docs/proposal.md) §6 References。
 > 標示「（規劃）」的項目尚未實作；標示「（待確認）」的項目需在下載資料或實作後驗證。
 
 ## 目錄
@@ -94,6 +95,16 @@ flowchart LR
 - 以 LLM 搭配 tool use，採 ReAct 式「思考 → 呼叫工具 → 觀察」迴圈。
 - 負責：意圖判斷、子任務拆解、選擇工具、整合各模組結果、決定是否需要更多證據。
 - 設定**最大工具呼叫次數**與 token 預算，避免無限迴圈（NFR4）。
+- **Planner 的決策點**：每個事件的執行路徑會依證據而不同，不是固定流程。
+
+| 決策點 | 依據 | 不同的路徑 |
+|---|---|---|
+| 選擇資料來源 | 輸入型態 | Incident ID → Evidence Store（GUIDE）；自然語言問題 → Log Query Tool（ExCyTIn，自行產生並執行 SQL） |
+| 擴大查詢的方向 | `IsSufficient(E)` 哪一項未滿足 | 缺帳號上下文 → 查該帳號的登入紀錄；缺主機上下文 → 查程序與網路紀錄；查詢為空 → 先確認 log 是否中斷 |
+| 擴大查詢的範圍 | 已對應到的攻擊鏈階段 | 出現 Lateral Movement 等技術時，把相關主機納入下一輪查詢 |
+| 何時停止 | `IsSufficient(E)` 或用完預算 B | 證據足夠就進入分析；用完預算仍不足就標記「證據不足」並升級 |
+
+- 在 GUIDE 上，欄位已匿名化，Planner 的選擇主要是「查哪些實體、擴大到哪裡」；在 ExCyTIn 上，Planner 要自行撰寫 SQL、多步追蹤證據，這是 E3 評估的重點。
 
 ### ④ Data Acquisition / Retrieval
 - **Incident Evidence Store**：將 GUIDE 的 alert / evidence 以 DuckDB 聚合成事件層級的資料。
@@ -119,7 +130,7 @@ flowchart LR
 ### ⑧ Output & Interaction
 - **事件報告**：分級、信心、證據鏈、ATT&CK 對應、建議動作、不確定性說明。
 - **Dashboard**（規劃）：Streamlit 介面，顯示事件佇列、報告與 SHAP 圖。
-- **Feedback**：分析師可修正結論，回饋資料可供後續重新訓練。
+- **Feedback**：分析師的修正會（1）立即加入相似事件檢索的歷史庫，之後遇到類似事件時可參考修正後的標籤；（2）累積一定數量後，用於重新調整門檻 τ 與重新訓練分級模型。
 
 ---
 
@@ -289,6 +300,14 @@ Output: label, confidence conf, flag set flags
 09: return (label, conf, flags)
 ```
 
+**`IsSufficient(E)` 的判斷方式**：採規則判斷，不交給 LLM 自行決定，以避免 [3] 發現的過早結案。三項都成立才算證據足夠：
+
+1. 事件中每一筆告警都已取得對應的證據（evidence）。
+2. 事件涉及的主要實體（帳號、主機）都至少有一筆上下文紀錄，例如登入、程序或網路活動。
+3. 任一查詢回傳空結果時，必須確認同一資料來源在該時間窗內仍有其他紀錄，也就是 log 沒有中斷；無法確認時視為證據不足，而不是「沒有可疑活動」。
+
+**`OneHotWithConfidence` 的轉換方式**：LLM 自行回報的數值信心通常不可靠，因此只要求 LLM 回報「低／中／高」三級信心，分別對應 c = 0.5、0.7、0.9（實際數值在驗證集上調整）。LLM 判斷的類別得到 c，其餘兩類平分 1 − c。例如 LLM 判斷為 TP、信心「中」，則 q = (0.7, 0.15, 0.15)。
+
 > 權重 `w_ml`、`w_llm` 與門檻 `τ`、`τ_safety` 將在驗證集上調整，不使用測試集調參。
 
 ---
@@ -335,7 +354,8 @@ Proposal 階段尚無可執行程式，實作後更新本節。
 | GUIDE 只有兩週資料、來自單一廠商生態系 | 泛化能力有限 | 在 Limitations 中說明；以 ExCyTIn / BOTS 做跨資料集展示 |
 | 類別不平衡 | TP 召回率偏低 | class weight、以 TP 漏判率為首要指標 |
 | LLM 幻覺 | 錯誤的 ATT&CK 對應或建議 | RAG、要求引用來源、與 ML 結果交叉檢查、衝突時交給人工 |
-| LLM 成本與延遲 | 無法處理大量告警 | 工具呼叫上限 B 與 token 預算；若 E5 顯示成本過高，改為只對 ML 不確定的事件呼叫 LLM（可選優化） |
+| LLM 成本與延遲 | 無法處理大量告警；實驗花費上限約 550 美元（以 [3] 每告警 0.109 美元、5 次 × 1,000 事件估算） | 工具呼叫上限 B 與 token 預算；先用 200 個事件的小樣本開發；若 E5 顯示成本過高，改為只對 ML 不確定的事件呼叫 LLM（可選優化） |
+| 開發時程只有 6 週 | 實驗可能無法全部完成 | 依優先順序執行：E1 → E2 → E5 → E3 → E4；第 5 週 ExCyTIn 仍無法運作就改用 BOTS v3 |
 
 ## 15. Changelog
 
@@ -344,3 +364,4 @@ Proposal 階段尚無可執行程式，實作後更新本節。
 | v0.1 | 2026-11-02 | Proposal 階段初版：Problem、Requirements、Architecture、Flowchart、Pseudocode、Evaluation Plan |
 | v0.2 | 2026-11-02 | 加入 GUIDE_Train.csv 實際檢查結果：確認匿名化欄位、標籤分布、`MitreTechniques` 覆蓋率、處置標籤缺值 |
 | v0.3 | 2026-11-03 | 證據不足（用完工具呼叫上限）改為標記後繼續分析，並列入升級條件（Flowchart、Algorithm 1 第 18 行）；LLM 成本對策改為工具與 token 預算，「只對不確定事件呼叫 LLM」列為可選優化 |
+| v0.4 | 2026-11-03 | 定義 `IsSufficient(E)` 與 `OneHotWithConfidence`；補充 Planner 決策點、回饋的用途、LLM 成本估算與時程風險 |
