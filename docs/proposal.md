@@ -277,7 +277,7 @@ flowchart LR
     P <--> K["⑥ Domain Knowledge<br/>MITRE ATT&CK KB (Vector DB)<br/>NIST IR Playbooks / Rules"]
 
     D --> DS[("GUIDE CSV<br/>ExCyTIn Logs<br/>BOTS Logs")]
-    K --> KB[("ATT&CK STIX<br/>D3FEND<br/>SP 800-61")]
+    K --> KB[("ATT&CK STIX<br/>D3FEND<br/>SP 800-61 Rev. 3")]
 
     P --> R["⑦ Decision / Recommendation<br/>Evidence Fusion<br/>Confidence & Escalation"]
     R --> O["⑧ Output & Interaction<br/>Incident Report<br/>Dashboard"]
