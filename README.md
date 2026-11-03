@@ -1,7 +1,7 @@
 # AI SOC Analyst Agent
 
 結合 **ML 告警分級**、**MITRE ATT&CK 領域知識** 與 **LLM 推理** 的資安維運中心（SOC）智慧代理人。
-Agent 針對資安事件提供 TP / BP / FP 分級、ATT&CK 攻擊鏈對應與處置建議，每個結論都附上證據；信心不足時主動交由分析師複核。
+Agent 針對資安事件提供 TP / BP / FP 分級、ATT&CK 攻擊鏈對應與處置建議，每個結論都附上證據；信心不足、結論衝突、高風險或證據不足時，主動交由分析師複核。
 
 > AIOT 課程期末專題 — 目前為 **Proposal 階段**。
 
@@ -37,21 +37,35 @@ Agent 針對資安事件提供 TP / BP / FP 分級、ATT&CK 攻擊鏈對應與�
 ```
 .
 ├── README.md
-├── DESIGN.md
+├── DESIGN.md                     # 系統設計文件
 ├── docs/
-│   └── proposal.md
-├── data/             # 資料集（不納入版本控制，見 data/README.md）
-├── src/soc_agent/    # Agent 原始碼（規劃）
-└── experiments/      # 實驗腳本（規劃）
+│   ├── proposal.md               # Proposal 文件
+│   └── AI_SOC_Analyst_Agent-Proposal.pptx / .pdf   # Proposal 簡報
+├── data/
+│   └── README.md                 # 資料下載與放置方式（資料檔本身不納入版本控制）
+├── experiments/
+│   ├── e0_profile_guide.py       # GUIDE 資料檢查腳本
+│   └── results/                  # 實驗輸出
+└── src/soc_agent/                # Agent 原始碼（實作階段）
 ```
 
 ## Installation
 
-實作階段補上。
+完整安裝方式於實作階段補上。目前的資料檢查腳本只需要 Python 3 與 pandas：
+
+```bash
+pip install pandas
+```
 
 ## How to Run
 
-實作階段補上。
+Agent 本體於實作階段補上。目前可以重現 GUIDE 訓練集的資料檢查（需先依 [`data/README.md`](data/README.md) 下載資料）：
+
+```bash
+python experiments/e0_profile_guide.py data/archive/GUIDE_Train.csv > experiments/results/guide_train_profile.json
+```
+
+輸出包含列數、事件數、標籤分布與各欄位的缺值比例，結果摘要見 [`DESIGN.md`](DESIGN.md) §5。
 
 ## Demo
 

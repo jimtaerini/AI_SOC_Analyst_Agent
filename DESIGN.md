@@ -1,6 +1,6 @@
 # DESIGN.md — AI SOC Analyst Agent
 
-> 狀態：**Proposal 階段**（v0.5）。本文件從 Proposal 開始建立並隨開發持續更新。
+> 狀態：**Proposal 階段**（v0.6）。本文件從 Proposal 開始建立並隨開發持續更新。
 > 文中的文獻編號（例如 [3]）對應 [`docs/proposal.md`](docs/proposal.md) §6 References。
 > 標示「（規劃）」的項目尚未實作；標示「（待確認）」的項目需在下載資料或實作後驗證。
 
@@ -78,7 +78,7 @@ flowchart LR
     O -- "Analyst Feedback" --> P
 ```
 
-> PPT 用的架構圖將以此 Mermaid 為藍本另行繪製（規劃）。
+> Proposal 簡報第 11 頁的架構圖依此 Mermaid 繪製。
 
 ## 4. Components
 
@@ -119,7 +119,7 @@ flowchart LR
 
 ### ⑥ Domain Knowledge Integration
 - **MITRE ATT&CK KB**：將 ATT&CK STIX 資料（Technique 描述、偵測方式、緩解措施）切塊後存入 Vector DB（Chroma），供 RAG 檢索。
-- **事件應變流程**：NIST SP 800-61（事件應變）與 MITRE D3FEND（防禦技術）整理為處置 playbook。
+- **事件應變流程**：NIST SP 800-61 Rev. 3（事件應變）與 MITRE D3FEND（防禦技術）整理為處置 playbook。
 - **領域規則**：例如「Initial Access + Credential Access + Exfiltration 同時出現 → 強制升級」。
 
 ### ⑦ Decision / Recommendation
@@ -139,7 +139,7 @@ flowchart LR
 | 資料集 | 年份 | 用途 | 授權 | 狀態 |
 |---|---|---|---|---|
 | Microsoft GUIDE（Kaggle: *Microsoft Security Incident Prediction*） | 2024 | 主資料集：分級模型訓練與評估（E1、E2、E4、Ablation）；`GUIDE_Test_Queue_Rankings.csv` 可做優先排序延伸實驗 | CDLA-2.0 | 已下載至 `data/archive/` |
-| ExCyTIn-Bench | 2025 | Agent 調查推理能力評估（E3） | 依官方 repo | 待下載 |
+| ExCyTIn-Bench（[microsoft/SecRL](https://github.com/microsoft/SecRL)） | 2025 | Agent 調查推理能力評估（E3、E5） | 程式為 MIT | 待下載（需 Docker + MySQL，約 10 GB） |
 | CyberSOCEval | 2025 | LLM 威脅情資推理能力參考評估（選用） | 依官方 repo | 待評估 |
 | Splunk BOTS v3 | 2020 | Demo 用真實格式 log 情境（選用） | CC0 | 待評估 |
 | MITRE ATT&CK（STIX 2.1） | 實作時鎖定版本 | 領域知識庫 | MITRE ToU | 待下載 |
@@ -173,7 +173,7 @@ flowchart LR
 
 **資料前處理**（規劃）：
 1. Evidence → Alert → Incident 三層聚合。
-2. 以 IncidentId 為單位切分，避免同一事件的告警同時出現在訓練集和驗證集（data leakage）；另做以組織（OrgId）或時間切分的評估，檢驗對新客戶、新時段的泛化能力。
+2. 以事件（`OrgId` + `IncidentId`）為單位切分，避免同一事件的告警同時出現在訓練集和驗證集（data leakage）；另做以組織（OrgId）或時間切分的評估，檢驗對新客戶、新時段的泛化能力。
 3. 分類別不平衡處理：class weight，必要時對 TP 加權。
 
 下載與放置方式見 [`data/README.md`](data/README.md)。
@@ -198,7 +198,7 @@ flowchart LR
 | Cyber Kill Chain | 攻擊階段模型 | 判斷事件處於攻擊鏈哪一段，越後段風險越高 |
 | NIST SP 800-61 Rev. 3 | 事件應變建議，以 CSF 2.0 六大功能（Govern、Identify、Protect、Detect、Respond、Recover）組織 | 處置建議的流程依據 |
 | MITRE D3FEND | 防禦技術對應 | 由 ATT&CK 技術推導對應的防禦動作 |
-| SOC 分級實務 | TP / BP / FP 定義、升級準則 | 輸出分類定義與 Human-in-the-loop 規則 |
+| SOC 分級實務 | TP / BP / FP 定義（BP 與 FP 的區分見 [24]）、升級準則 | 輸出分類定義與人工複核的升級規則 |
 
 ### 7.1 設計原則（來自 Deep Research）
 
@@ -318,12 +318,12 @@ Output: label, confidence conf, flag set flags
 
 | 實驗 | 目的 | 資料 | Baselines | Metrics |
 |---|---|---|---|---|
-| E1 分級準確度 | Agent 分級是否優於單一方法 | GUIDE test split | ① 多數類別 ② Detector 歷史誤報率規則 ③ GBDT only ④ LLM only（無 KB） | Macro-F1、各類 Precision / Recall、**TP 漏判率**、**人工升級率**（兩者的取捨參考 [3] AIDA） |
+| E1 分級準確度 | Agent 分級是否優於單一方法 | GUIDE（依事件切分；另做依組織、時間切分） | ① 多數類別 ② Detector 歷史誤報率規則 ③ GBDT only ④ LLM only（無 KB） | Macro-F1、各類 Precision / Recall、**TP 漏判率**、**人工升級率**（兩者的取捨參考 [3] AIDA） |
 | E2 ATT&CK 對應 | 知識整合是否正確 | GUIDE 中有 `MitreTechniques` 標註的告警（約 42.5% 的列） | LLM only vs. LLM + RAG | Technique / Tactic 層級 Precision、Recall |
 | E3 調查推理 | Agent 是否能查 log 回答調查問題 | ExCyTIn-Bench | 論文公布的模型分數、無規劃的單輪 LLM | Benchmark reward / accuracy |
 | E4 報告品質 | 報告是否有用、可信 | 抽樣 50 個事件 | 無 RAG 的報告 | 評分表（正確性、證據完整性、可執行性）：人工 + LLM-as-judge |
 | E5 成本 | 實務可行性 | E1 / E3 | — | 每事件 token 數、延遲、工具呼叫次數 |
-| Ablation | 各模組貢獻 | GUIDE | 移除 ⑤、⑥ 或 Human-in-the-loop 規則 | 同 E1 |
+| Ablation | 各模組貢獻 | GUIDE | 分別移除 ⑤、⑥ 或升級規則 | 同 E1 |
 
 ## 11. Implementation Mapping
 
@@ -338,11 +338,16 @@ Output: label, confidence conf, flag set flags
 | ⑥ Knowledge | `src/soc_agent/knowledge/attack_kb.py`、`playbooks/` |
 | ⑦ Decision | `src/soc_agent/decision/fusion.py` |
 | ⑧ Output | `src/soc_agent/report.py`、`app/dashboard.py` |
+| 資料檢查（已完成） | `experiments/e0_profile_guide.py` |
 | 實驗 | `experiments/e1_triage.py` … `e5_cost.py` |
 
 ## 12. How to Run
 
-Proposal 階段尚無可執行程式，實作後更新本節。
+Agent 本體尚未實作，實作後更新本節。目前可執行的是 GUIDE 資料檢查：
+
+```bash
+python experiments/e0_profile_guide.py data/archive/GUIDE_Train.csv > experiments/results/guide_train_profile.json
+```
 
 ## 13. Results
 
@@ -353,7 +358,7 @@ Proposal 階段尚無可執行程式，實作後更新本節。
 | 風險 | 影響 | 對策 |
 |---|---|---|
 | GUIDE 告警標題與實體欄位為匿名化 ID（已確認） | LLM 難以從語意理解告警 | 分級以 ML 為主；LLM 負責知識整合與報告；原始 log 推理改用 ExCyTIn |
-| GUIDE 只有兩週資料、來自單一廠商生態系 | 泛化能力有限 | 在 Limitations 中說明；以 ExCyTIn / BOTS 做跨資料集展示 |
+| GUIDE 依論文只涵蓋兩週、來自單一廠商生態系 | 泛化能力有限 | 在 Limitations 中說明；以 ExCyTIn / BOTS 做跨資料集展示 |
 | 類別不平衡 | TP 召回率偏低 | class weight、以 TP 漏判率為首要指標 |
 | LLM 幻覺 | 錯誤的 ATT&CK 對應或建議 | RAG、要求引用來源、與 ML 結果交叉檢查、衝突時交給人工 |
 | LLM 成本與延遲 | 無法處理大量告警；實驗花費上限約 550 美元（以 [3] 每告警 0.109 美元、5 次 × 1,000 事件估算） | 工具呼叫上限 B 與 token 預算；先用 200 個事件的小樣本開發；若 E5 顯示成本過高，改為只對 ML 不確定的事件呼叫 LLM（可選優化） |
@@ -368,3 +373,4 @@ Proposal 階段尚無可執行程式，實作後更新本節。
 | v0.3 | 2026-11-03 | 證據不足（用完工具呼叫上限）改為標記後繼續分析，並列入升級條件（Flowchart、Algorithm 1 第 18 行）；LLM 成本對策改為工具與 token 預算，「只對不確定事件呼叫 LLM」列為可選優化 |
 | v0.4 | 2026-11-03 | 定義 `IsSufficient(E)` 與 `OneHotWithConfidence`；補充 Planner 決策點、回饋的用途、LLM 成本估算與時程風險 |
 | v0.5 | 2026-11-03 | 新增 SOC 實務文獻 [24]–[26]，`IsSufficient` 的設計依據加入 [25] |
+| v0.6 | 2026-11-03 | 補上 ExCyTIn-Bench 官方 repo 與授權；資料切分改以 `OrgId` + `IncidentId` 為鍵；How to Run 加入資料檢查指令 |
